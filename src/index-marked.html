@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lazierDocs marked</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <script> window.mdText = '${MD_TEXT}' </script>
+    <script src="./lazierDocs.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    <script>
+        LazierDocs.hookWinddowOnloadBefore = () => {
+            marked.setOptions({
+                // 启用GitHub风格的Markdown
+                gfm: true,
+                // 为标题自动生成id属性
+                headerIds: true,
+                // 可选：为id添加前缀，避免冲突
+                headerPrefix: 'my-prefix-',
+            });
+        };
+        LazierDocs.parseMarkdown = (mdText) => marked.parse(mdText);
+    </script>
+    <h1>我的应用</h1>
+    <button onclick="clearCache()">清理缓存</button>
+</body>
+
+</html>
