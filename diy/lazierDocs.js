@@ -26,7 +26,7 @@ var LazierDocs = {
             this.hookLoadedMD()
         }
         // 缓存数据
-        if (location.pathname.endsWith('/index.html')) {
+        if (location.pathname.endsWith('/index.html') || location.pathname.endsWith('/')) {
             this.hookCacheMdList();
         }
         this.hookWinddowOnloadAfter();
