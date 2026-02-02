@@ -39,6 +39,33 @@
     <!-- 自定义的重写内容 -->
     <script>
             (() => {
+                LazierDocs.basePath = '/DOC/';
+                updateCacheFiles();
+                // 增加缓存其他资源文件
+                function updateCacheFiles() {
+                    let data = localStorage.getItem(LazierDocs.localStorageName);
+                    try {
+                        if (typeof data != 'object' || data == null) throw new Error('无效对象!');
+                        for (const k in data) {
+                            data[k] = null;
+                        }
+                    } catch (err) {
+                        // 默认的数据
+                        data = {
+                            '': null,
+                            'index.html': null,
+                            'lazierDocs.js': null,
+                            'sw.js': null,
+                        }
+                    }
+                    // 添加新增的数据
+                    data['DynamicToolbar.js'] = null;
+                    data['ls.json'] = null;
+                    data['github-markdown.min.css'] = null;
+                    // 保存数据
+                    LazierDocs.updateCacheFiles(data);
+                }
+                // 统一的标题id生成
                 function customSlugify(s) {
                     // 一个简单的 slugify 函数，将标题文本转换为有效的 ID
                     return s.toLowerCase()
@@ -84,17 +111,19 @@
                         {
                             html: '关于',
                             action: () => alert('文档基于 LazierDocs 项目构建，项目地址 https://github.com/lazier334/lazierDocs')
+                        },
+                        {
+                            html: '<div id="otherMds"></div>',
+                            action: () => void 0
                         }
                     ];
                     let toc = document.querySelector('nav.table-of-contents');
-                    if (toc) {
-                        // 动态添加章节列表
-                        toolbarItems.unshift({
-                            html: toc.innerHTML
-                        });
-                        // toc.parentNode.removeChild(toc)
-                        toc.remove()
-                    }
+                    // 动态添加章节列表
+                    toolbarItems.unshift({
+                        html: `<div><h3>目录</h3>${toc?.innerHTML || '--无目录--<br>在文档中使用 "[[toc]]" 符号可加载目录'}<div>`
+                    });
+                    toc?.remove?.();
+
                     // 创建右下角的工具栏
                     const toolbar = new DynamicToolbar({
                         position: "bottom-right",
@@ -117,6 +146,37 @@
                         }
                         `;
                     });
+
+                    // 添加列表
+                    (() => {
+                        let html = '';
+                        fetch('ls.json').then(res => res.json()).then(json => {
+                            // 把 json 转成书籍列表md语言，再使用md组件渲染
+                            const scanfJson = (d, num, path) => {
+                                const re = [];
+                                const blankString = new Array(num * 4).fill(' ').join('');
+                                for (const k in d) {
+                                    const v = d[k];
+                                    const li = `${blankString}* [${k}](${path + k})`;
+                                    if (typeof v == 'object' && v != null) {
+                                        re.push(li + '\n' + scanfJson(v, num + 1, path + k + '/'))
+                                    } else {
+                                        re.push(li)
+                                    }
+                                }
+                                return re.join('\n');
+                            };
+                            let md = scanfJson(json, 0, LazierDocs.basePath || '') || '';
+                            html = `<div><h3>书籍列表</h3>${LazierDocs.parseMarkdown(md)}</div>`;
+                        }).catch(err => {
+                            html = `加载书籍列表失败: ${err.message}`;
+                        }).finally(r => {
+                            let otherMds = toolbar.toolbar.querySelector('#otherMds');
+                            if (otherMds) {
+                                otherMds.innerHTML = html;
+                            }
+                        })
+                    })();
                 }
             })()
     </script>

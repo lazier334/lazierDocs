@@ -29,6 +29,32 @@
     <script src="./lazierDocs.js"></script>
     <!-- 引入 markdown-it 核心 -->
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+    <!-- 自定义缓存列表，把样式 github-markdown.min.css 缓存起来 -->
+    <script>
+        updateCacheFiles();
+        // 增加缓存其他资源文件
+        function updateCacheFiles() {
+            let data = localStorage.getItem(LazierDocs.localStorageName);
+            try {
+                if (typeof data != 'object' || data == null) throw new Error('无效对象!');
+                for (const k in data) {
+                    data[k] = null;
+                }
+            } catch (err) {
+                // 默认的数据
+                data = {
+                    '': null,
+                    'index.html': null,
+                    'lazierDocs.js': null,
+                    'sw.js': null,
+                }
+            }
+            // 添加新增的数据
+            data['github-markdown.min.css'] = null;
+            // 保存数据
+            LazierDocs.updateCacheFiles(data);
+        }
+    </script>
 
     <h1>我的应用</h1>
     <button onclick="clearCache()">清理缓存</button>

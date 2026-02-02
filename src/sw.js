@@ -1,4 +1,4 @@
-// sw.js
+// sw.js - Service Worker with dynamic caching and cache management
 const swUrl = new URL(self.location.href).href.split('?').shift();
 const indexRequest = new Request(swUrl.replace('sw.js', 'index.html'));
 const mdFlag = '${MD_TEXT}';
@@ -7,11 +7,15 @@ const handlerSuffixMap = {
     '.md': processMdResponse
 };
 /** 缓存后缀如下的文件列表 */
-const cachePathSuffix = {
+var cacheFiles = {
     '': null,   // 相当于 index.html
     'index.html': null,
     'lazierDocs.js': null,
     'sw.js': null,
+};
+const SWAPI = {
+    'clearSWCache': warpApi(clearCacheHandler, '清理缓存失败!'),
+    'updateCacheFiles': warpApi(updateCacheFiles),
 };
 const encoder = new TextEncoder();
 
@@ -35,10 +39,11 @@ self.addEventListener('fetch', (event) => {
     const request = event.request;
     const url = new URL(request.url);
 
-    // 特殊处理clearSWCache请求
-    if (url.pathname.endsWith('/clearSWCache')) {
-        console.log('清理缓存');
-        event.respondWith(clearCacheHandler(event));
+    // 特殊处理 sw 的 api 请求
+    let apiArr = url.pathname.split('/SWAPI/');
+    if (1 < apiArr.length) {
+        apiArr.shift();
+        event.respondWith(SWAPI[apiArr.join('/SWAPI/')](event));
         return;
     }
 
@@ -59,11 +64,19 @@ async function cacheFirstHandler(event, handlerSuffix) {
     try {
         let cachedResponse = null;
         const apiSuffix = new URL(request.url).pathname.split('/').pop();
-        let cachePathSuffixFlag = apiSuffix in cachePathSuffix;
+        let cachePathSuffixFlag = apiSuffix in cacheFiles;
         // 缓存全路径
         if (cachePathSuffixFlag) {
             // 读取缓存
-            cachedResponse = cachePathSuffix[apiSuffix];
+            cachedResponse = cacheFiles[apiSuffix];
+            if (!cachedResponse) {
+                // 主动缓存
+                await cacheResources();
+                cachedResponse = cacheFiles[apiSuffix];
+            }
+            if (!cachedResponse) {
+                console.error('找不到缓存! 文件名:', apiSuffix);
+            }
         }
         // 尝试从缓存中获取
         if (!cachedResponse) cachedResponse = await caches.match(request);
@@ -82,19 +95,6 @@ async function cacheFirstHandler(event, handlerSuffix) {
             cache.put(request, networkResponse.clone()).catch(err => {
                 console.warn('缓存写入失败:', err);
             });
-
-            // 全路径缓存
-            // NOTE 不能和下面的 cache 使用同一个对象，否则会导致被使用，暂时不知道原因
-            if (cachePathSuffixFlag) {
-                cachePathSuffix[apiSuffix] = networkResponse.clone();
-                // console.log('保存', apiSuffix)
-                if (apiSuffix == '' || apiSuffix == 'index.html') {
-                    // 缓存首页模板
-                    cache.put(indexRequest, networkResponse.clone()).catch(err => {
-                        console.warn('缓存写入失败:', err);
-                    });
-                }
-            }
         }
 
         return handler(networkResponse);
@@ -114,52 +114,69 @@ async function cacheFirstHandler(event, handlerSuffix) {
         });
     }
 }
-// 缓存指定资源
+// 全路径缓存指定资源
 async function cacheResources() {
+    // 保存
+    async function save(files) {
+        for (const file of files) {
+            let cacheResponse = await caches.match(new Request(swUrl.replace('sw.js', file)));
+            cacheFiles[file] = cacheResponse?.clone();
+            if (file == 'index.html') {
+                cacheFiles[''] = cacheResponse?.clone();
+            }
+        }
+    }
     // 基于当前sw的url缓存 index.html 和 lazierDocs.js 
-    return caches.open(CACHE_NAME).then(cache => {
-        return cache.addAll([
-            swUrl.replace('sw.js', 'index.html'),
-            swUrl.replace('sw.js', 'lazierDocs.js')
-        ]);
+    return caches.open(CACHE_NAME).then(async cache => {
+        let files = Object.keys(cacheFiles).filter(file => file != '');
+        // 优先尝试从全局缓存中读取，如果读取不到再进行缓存
+        save(files);
+        // 只缓存不存在的
+        files = Object.keys(cacheFiles).filter(file => file != '' && !cacheFiles[file]);
+        if (0 < files.length) {
+            const urls = files.map(file => swUrl.replace('sw.js', file));
+            return cache.addAll(urls).then(async (value) => {
+                // 将数据保存到全局缓存中
+                save(files);
+            });
+        }
     });
 }
 
 // 清理缓存处理函数
 async function clearCacheHandler(event) {
-    try {
-        // 获取所有缓存名称
-        const cacheNames = await caches.keys();
-
-        // 删除所有缓存
-        await Promise.all(
-            cacheNames.map(cacheName => caches.delete(cacheName))
-        );
-
-        console.log('所有缓存已清理完成');
-
-        // 异步缓存资源
-        cacheResources();
-
-        // 返回成功响应
-        return new Response(JSON.stringify({
-            success: true,
-            message: '所有缓存已清理完成'
-        }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json; charset=utf-8' }
-        });
-    } catch (error) {
-        console.error('清理缓存时出错:', error);
-
-        // 返回错误响应
-        return new Response(JSON.stringify({
-            success: false,
-            message: '清理缓存失败: ' + error.message
-        }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json; charset=utf-8' }
-        });
+    // 获取所有缓存名称
+    const cacheNames = await caches.keys();
+    // 删除所有缓存
+    await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+    console.log('所有缓存已清理完成');
+    // 异步缓存核心资源
+    cacheResources();
+    return '所有缓存已清理完成';
+}
+// 清理缓存处理函数
+function warpApi(fun, errMsg) {
+    return async function (...args) {
+        try {
+            // 返回成功响应
+            return new Response(JSON.stringify({
+                success: true,
+                message: await fun(...args)
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        } catch (error) {
+            console.error('swapi操作时出错:', error);
+            // 返回错误响应
+            return new Response(JSON.stringify({
+                success: false,
+                message: errMsg || ('swapi操作失败: ' + error.message)
+            }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
     }
 }
 
@@ -195,4 +212,19 @@ async function processMdResponse(response) {
         // 如果处理失败，返回原始响应
         return resp;
     }
+}
+/**
+ * 更新 cacheFiles 对象
+ */
+async function updateCacheFiles(event) {
+    let data = await event.request.json();
+    if (data) {
+        for (const k in data) {
+            data[k] = null;
+        }
+        cacheFiles = data;
+        await cacheResources();
+        return '已更新缓存';
+    }
+    return '无效的数据';
 }

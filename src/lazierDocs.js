@@ -2,6 +2,7 @@
  * 文档全局对象，可以通过修改内部的钩子函数拓展功能，也可以直接完全重写
  */
 var LazierDocs = {
+    localStorageName: 'LazierDocs-cacheFiles',
     /** 缓存 */
     caches: {
         /** 
@@ -105,6 +106,22 @@ var LazierDocs = {
     hookWinddowOnloadBefore() { },
     /** hook 调用window.onload后 */
     hookWinddowOnloadAfter() { },
+    /**
+     * 更新缓存指定后缀函数
+     */
+    updateCacheFiles(data) {
+        localStorage.setItem(LazierDocs.localStorageName, JSON.stringify(data));
+        fetch('SWAPI/updateCacheFiles', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        }).then(response => response.json())
+            .then(data => {
+                console.log('更新结束: ' + data.message);
+            }).catch(error => alert('更新失败: ' + error.message));
+    }
 };
 
 // 主函数自运行
@@ -138,7 +155,7 @@ function registerServiceWorker() {
  * 清理缓存函数
  */
 function clearCache() {
-    fetch('clearSWCache').then(response => response.json())
+    fetch('SWAPI/clearSWCache').then(response => response.json())
         .then(data => {
             alert(data.message);
             if (data.success) {
