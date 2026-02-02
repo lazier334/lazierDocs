@@ -1,5 +1,6 @@
-// sw.js - Service Worker with dynamic caching and cache management
-var indexRequest = null;
+// sw.js
+const swUrl = new URL(self.location.href).href.split('?').shift();
+const indexRequest = new Request(swUrl.replace('sw.js', 'index.html'));
 const mdFlag = '${MD_TEXT}';
 const CACHE_NAME = 'lazier-docs-cache-v1';
 const handlerSuffixMap = {
@@ -13,9 +14,11 @@ const cachePathSuffix = {
     'sw.js': null,
 };
 const encoder = new TextEncoder();
+
 // 监听安装事件 - 不做预缓存
 self.addEventListener('install', (event) => {
     console.log('Service Worker 安装完成');
+    cacheResources();
     // 跳过等待，立即激活
     self.skipWaiting();
 });
@@ -45,13 +48,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 缓存模板
-    if (url.pathname.endsWith('/index.html') || url.pathname.endsWith('/')) {
-        indexRequest = event.request;
-        event.respondWith(cacheFirstHandler(event));
-        return;
-    }
-
     // 对于其他请求，使用缓存优先策略
     event.respondWith(cacheFirstHandler(event));
 });
@@ -65,12 +61,12 @@ async function cacheFirstHandler(event, handlerSuffix) {
         const apiSuffix = new URL(request.url).pathname.split('/').pop();
         let cachePathSuffixFlag = apiSuffix in cachePathSuffix;
         // 缓存全路径
-        if(cachePathSuffixFlag) {
+        if (cachePathSuffixFlag) {
             // 读取缓存
             cachedResponse = cachePathSuffix[apiSuffix];
         }
         // 尝试从缓存中获取
-        if(!cachedResponse) cachedResponse = await caches.match(request);
+        if (!cachedResponse) cachedResponse = await caches.match(request);
 
         if (cachedResponse) {
             return handler(cachedResponse);
@@ -81,24 +77,29 @@ async function cacheFirstHandler(event, handlerSuffix) {
 
         // 检查响应是否有效
         if (networkResponse && networkResponse.status === 200) {
-            // 全路径缓存
-            // NOTE 不能和下面的 cache 使用同一个对象，否则会导致被使用，暂时不知道原因
-            if(cachePathSuffixFlag) {cachePathSuffix[apiSuffix] = networkResponse.clone();
-                console.log('保存',apiSuffix )
-                if(apiSuffix == '' || apiSuffix == 'index.html') {
-                    indexRequest = networkResponse.clone();
-                }
-            }
             // 将响应添加到缓存中
             const cache = await caches.open(CACHE_NAME);
             cache.put(request, networkResponse.clone()).catch(err => {
                 console.warn('缓存写入失败:', err);
             });
+
+            // 全路径缓存
+            // NOTE 不能和下面的 cache 使用同一个对象，否则会导致被使用，暂时不知道原因
+            if (cachePathSuffixFlag) {
+                cachePathSuffix[apiSuffix] = networkResponse.clone();
+                // console.log('保存', apiSuffix)
+                if (apiSuffix == '' || apiSuffix == 'index.html') {
+                    // 缓存首页模板
+                    cache.put(indexRequest, networkResponse.clone()).catch(err => {
+                        console.warn('缓存写入失败:', err);
+                    });
+                }
+            }
         }
 
         return handler(networkResponse);
     } catch (error) {
-        console.error('异常', error)
+        console.error('异常', error);
         // 网络请求失败，尝试返回缓存的响应
         const cachedResponse = await caches.match(request);
         if (cachedResponse) {
@@ -106,12 +107,22 @@ async function cacheFirstHandler(event, handlerSuffix) {
         }
 
         // 如果没有缓存可用，返回错误页面或空响应
-        return new Response('网络不可用，且无缓存内容\n'+error.messgae+'\n'+error.stack, {
+        return new Response('网络不可用，且无缓存内容\n' + error.messgae + '\n' + error.stack, {
             status: 503,
             statusText: 'Service Unavailable',
             headers: new Headers({ 'Content-Type': 'text/plain; charset=utf-8' })
         });
     }
+}
+// 缓存指定资源
+async function cacheResources() {
+    // 基于当前sw的url缓存 index.html 和 lazierDocs.js 
+    return caches.open(CACHE_NAME).then(cache => {
+        return cache.addAll([
+            swUrl.replace('sw.js', 'index.html'),
+            swUrl.replace('sw.js', 'lazierDocs.js')
+        ]);
+    });
 }
 
 // 清理缓存处理函数
@@ -126,6 +137,9 @@ async function clearCacheHandler(event) {
         );
 
         console.log('所有缓存已清理完成');
+
+        // 异步缓存资源
+        cacheResources();
 
         // 返回成功响应
         return new Response(JSON.stringify({
