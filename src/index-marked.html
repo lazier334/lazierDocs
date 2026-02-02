@@ -5,18 +5,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>lazierDocs marked</title>
+    <link rel="stylesheet" href="./github-markdown.min.css">
     <style>
         * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        .markdown-body {
+            width: 80%;
+            min-width: 750px;
+            margin: 0 auto;
+            min-width: 768px;
+            max-width: 1200px;
         }
     </style>
 </head>
 
-<body>
-    <script> window.mdText = '${MD_TEXT}' </script>
+<body class="markdown-body">
+    <script> window.mdText = '${MD_TEXT}'; </script>
+    <!-- 引入 LazierDocs 核心 -->
     <script src="./lazierDocs.js"></script>
+    <!-- 引入 marked 核心 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    <!-- 重写格式化md字符串的方法 -->
     <script>
         LazierDocs.hookWinddowOnloadBefore = () => {
             marked.setOptions({
@@ -25,7 +38,7 @@
                 // 为标题自动生成id属性
                 headerIds: true,
                 // 可选：为id添加前缀，避免冲突
-                headerPrefix: 'my-prefix-',
+                // headerPrefix: 'my-prefix-',
             });
         };
         LazierDocs.parseMarkdown = (mdText) => marked.parse(mdText);

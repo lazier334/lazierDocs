@@ -5,17 +5,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>lazierDocs markdown-it</title>
+    <link rel="stylesheet" href="./github-markdown.min.css">
     <style>
         * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        .markdown-body {
+            width: 80%;
+            min-width: 750px;
+            margin: 0 auto;
+            min-width: 768px;
+            max-width: 1200px;
         }
     </style>
 </head>
 
-<body>
-    <script> window.mdText = '${MD_TEXT}' </script>
+<body class="markdown-body">
+    <script> window.mdText = '${MD_TEXT}'; </script>
+    <!-- 引入 LazierDocs 核心 -->
     <script src="./lazierDocs.js"></script>
+    <!-- 引入 markdown-it 核心 -->
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
 
     <h1>我的应用</h1>
