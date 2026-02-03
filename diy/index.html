@@ -39,7 +39,7 @@
     <!-- 自定义的重写内容 -->
     <script>
         (() => {
-            LazierDocs.basePath = '/DOC/';
+            LazierDocs.basePath = '/docs/';
             updateCacheFiles();
             // 增加缓存其他资源文件
             function updateCacheFiles() {
@@ -151,40 +151,76 @@
                 });
 
                 // 添加列表
-                (() => {
-                    let html = '';
-                    fetch('ls.json').then(res => res.json()).then(json => {
-                        // 把 json 转成书籍列表md语言，再使用md组件渲染
-                        const scanfJson = (d, num, path) => {
-                            const re = [];
-                            const blankString = new Array(num * 4).fill(' ').join('');
-                            for (const k in d) {
-                                const v = d[k];
-                                const li = `${blankString}* [${k}](${path + k})`;
-                                if (typeof v == 'object' && v != null) {
-                                    re.push(li + '\n' + scanfJson(v, num + 1, path + k + '/'))
-                                } else {
-                                    re.push(li)
-                                }
+                loadMds(toolbar.toolbar.querySelector('#otherMds'));
+            }
+
+            /**
+             * @param {HTMLElement} toElement 要显示内容的元素，会覆盖元素内的 innerHTML
+             */
+            function loadMds(toElement) {
+                if (typeof toElement?.innerHTML != 'string') return '无效的元素';
+
+                let html = '';
+                fetch('ls.json').then(res => res.json()).then(json => {
+                    // 把 json 转成书籍列表md语言，再使用md组件渲染
+                    const scanfJson = (d, num, path) => {
+                        const re = [];
+                        const blankString = new Array(num * 4).fill(' ').join('');
+                        for (const k in d) {
+                            const v = d[k];
+                            const li = `${blankString}* [${k}](${path + k})`;
+                            if (typeof v == 'object' && v != null) {
+                                re.push(li + '\n' + scanfJson(v, num + 1, path + k + '/'))
+                            } else {
+                                re.push(li)
                             }
-                            return re.join('\n');
-                        };
-                        let md = scanfJson(json, 0, LazierDocs.basePath || '') || '';
-                        html = `<div><h3>书籍列表</h3>${LazierDocs.parseMarkdown(md)}</div>`;
-                    }).catch(err => {
-                        html = `加载书籍列表失败: ${err.message}`;
-                    }).finally(r => {
-                        let otherMds = toolbar.toolbar.querySelector('#otherMds');
-                        if (otherMds) {
-                            otherMds.innerHTML = html;
                         }
-                    })
-                })();
+                        return re.join('\n');
+                    };
+                    let md = scanfJson(json, 0, LazierDocs.basePath || '') || '';
+                    html = `<div><h3>书籍列表</h3>${LazierDocs.parseMarkdown(md)}</div>`;
+                }).catch(err => {
+                    html = `加载书籍列表失败: ${err.message}`;
+                }).finally(_ => {
+                    toElement.innerHTML = html;
+                })
+            }
+
+            LazierDocs.hookWinddowOnloadAfter = function () {
+                if (location.pathname.endsWith('/index.html')) {
+                    let query = new URLSearchParams(location.search);
+                    if (query.get('md')) {
+                        location.href = query.get('md');
+                        return;
+                    }
+                    loadMds(document.querySelector('#mainOtherMds'));
+                }
             }
         })()
     </script>
-    <h1>我的应用</h1>
-    <button onclick="clearCache()">清理缓存</button>
+
+
+    <style>
+        .modern-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .modern-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+    <h1>LazierDocs</h1>
+    <button onclick="clearCache()" class="modern-btn">清理缓存</button>
+    <a href="README.md"><button class="modern-btn">自述文档</button></a>
+    <div id="mainOtherMds"></div>
 </body>
 
 </html>
