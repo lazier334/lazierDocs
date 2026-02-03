@@ -55,8 +55,26 @@
         }
     </script>
 
-    <h1>我的应用</h1>
-    <button onclick="clearCache()">清理缓存</button>
+    <style>
+        .modern-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .modern-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+    <h1>LazierDocs</h1>
+    <button onclick="clearCache()" class="modern-btn">清理缓存</button>
+    <a href="README.md"><button class="modern-btn">自述文档</button></a>
 </body>
 
 </html>
