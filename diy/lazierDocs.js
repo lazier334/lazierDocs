@@ -113,20 +113,22 @@ var LazierDocs = {
         localStorage.setItem(LazierDocs.localStorageName, JSON.stringify(data));
         fetch('SWAPI/updateCacheFiles', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         }).then(response => response.json())
-            .then(data => {
-                console.log('更新结束: ' + data.message);
-            }).catch(error => alert('更新失败: ' + error.message));
+            .then(data => console.log('更新结束: ' + data.message))
+            .catch(error => alert('更新失败: ' + error.message));
     }
 };
 
 // 主函数自运行
 (() => {
-    registerServiceWorker();
+    // 从window对象和url读取参数，如果存在 bansw 且为真则禁用sw
+    let banswQuery = new URLSearchParams(location.search).get('bansw');
+    if (banswQuery == null || ['false', 'null', 'undefined', '0', ''].includes(banswQuery.toLowerCase())) banswQuery = false;
+    if (!(window.bansw || banswQuery)) {
+        registerServiceWorker();
+    }
     window.onload = () => LazierDocs.htmlOnload();
 })();
 

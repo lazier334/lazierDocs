@@ -8,7 +8,6 @@ const handlerSuffixMap = {
 };
 /** 缓存后缀如下的文件列表 */
 var cacheFiles = {
-    '': null,   // 相当于 index.html
     'index.html': null,
     'lazierDocs.js': null,
     'sw.js': null,
@@ -63,7 +62,8 @@ async function cacheFirstHandler(event, handlerSuffix) {
     const handler = handlerSuffixMap[handlerSuffix] || (r => r.clone());
     try {
         let cachedResponse = null;
-        const apiSuffix = new URL(request.url).pathname.split('/').pop();
+        let apiSuffix = new URL(request.url).pathname.split('/').pop();
+        if (apiSuffix == '') apiSuffix = 'index.html';
         let cachePathSuffixFlag = apiSuffix in cacheFiles;
         // 缓存全路径
         if (cachePathSuffixFlag) {
@@ -99,7 +99,7 @@ async function cacheFirstHandler(event, handlerSuffix) {
 
         return handler(networkResponse);
     } catch (error) {
-        console.error('异常', error);
+        console.error('异常:', error);
         // 网络请求失败，尝试返回缓存的响应
         const cachedResponse = await caches.match(request);
         if (cachedResponse) {
@@ -121,9 +121,6 @@ async function cacheResources() {
         for (const file of files) {
             let cacheResponse = await caches.match(new Request(swUrl.replace('sw.js', file)));
             cacheFiles[file] = cacheResponse?.clone();
-            if (file == 'index.html') {
-                cacheFiles[''] = cacheResponse?.clone();
-            }
         }
     }
     // 基于当前sw的url缓存 index.html 和 lazierDocs.js 
@@ -185,7 +182,21 @@ async function processMdResponse(response) {
     let resp = response.clone();
     try {
         // 读取首页
-        const indexResponse = await caches.match(indexRequest);
+        let indexResponse = await caches.match(indexRequest);
+        if (!indexResponse) {
+            // 缓存中没有，则从网络获取
+            const networkResponse = await fetch(indexRequest);
+            // 检查响应是否有效
+            if (networkResponse && networkResponse.status === 200) {
+                // 将响应添加到缓存中
+                const cache = await caches.open(CACHE_NAME);
+                cache.put(indexRequest, networkResponse.clone()).catch(err => {
+                    console.warn('缓存写入失败:', err);
+                });
+                // 更改引用，这里不在下方去读取缓存是因为避免缓存无效的情况
+                indexResponse = networkResponse;
+            };
+        }
         if (!indexResponse) {
             throw new Error('暂无首页数据');
         }

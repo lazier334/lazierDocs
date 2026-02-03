@@ -15,16 +15,16 @@
 
         .markdown-body {
             width: 80%;
-            min-width: 750px;
             margin: 0 auto;
             min-width: 768px;
+            min-width: 320px;
             max-width: 1200px;
         }
     </style>
 </head>
 
 <body class="markdown-body">
-    <script> window.mdText = '${MD_TEXT}' </script>
+    <script> window.mdText = '${MD_TEXT}'; </script>
     <!-- 引入 LazierDocs 核心 -->
     <script src="./lazierDocs.js"></script>
     <!-- 引入 markdown-it 核心 -->
@@ -38,147 +38,150 @@
     <script src="./DynamicToolbar.js"></script>
     <!-- 自定义的重写内容 -->
     <script>
-            (() => {
-                LazierDocs.basePath = '/DOC/';
-                updateCacheFiles();
-                // 增加缓存其他资源文件
-                function updateCacheFiles() {
-                    let data = localStorage.getItem(LazierDocs.localStorageName);
-                    try {
-                        if (typeof data != 'object' || data == null) throw new Error('无效对象!');
-                        for (const k in data) {
-                            data[k] = null;
-                        }
-                    } catch (err) {
-                        // 默认的数据
-                        data = {
-                            '': null,
-                            'index.html': null,
-                            'lazierDocs.js': null,
-                            'sw.js': null,
-                        }
+        (() => {
+            LazierDocs.basePath = '/DOC/';
+            updateCacheFiles();
+            // 增加缓存其他资源文件
+            function updateCacheFiles() {
+                let data = localStorage.getItem(LazierDocs.localStorageName);
+                try {
+                    if (typeof data != 'object' || data == null) throw new Error('无效对象!');
+                    for (const k in data) {
+                        data[k] = null;
                     }
-                    // 添加新增的数据
-                    data['DynamicToolbar.js'] = null;
-                    data['ls.json'] = null;
-                    data['github-markdown.min.css'] = null;
-                    // 保存数据
-                    LazierDocs.updateCacheFiles(data);
+                } catch (err) {
+                    // 默认的数据
+                    data = {
+                        'index.html': null,
+                        'lazierDocs.js': null,
+                        'sw.js': null,
+                    }
                 }
-                // 统一的标题id生成
-                function customSlugify(s) {
-                    // 一个简单的 slugify 函数，将标题文本转换为有效的 ID
-                    return s.toLowerCase()
-                        .toLowerCase()
-                        .replace(/[^\w\u4e00-\u9fa5\s-]/g, '')  // 移除非字母、数字、下划线、空格、连字符和非中文字符
-                        .replace(/\s+/g, '-')   // 将空格转换为连字符
-                        .replace(/-+/g, '-')    // 合并多个连字符
-                        .replace(/^-+/, '')     // 移除开头的连字符
-                        .replace(/-+$/, '');    // 移除结尾的连字符
-                }
+                // 添加新增的数据
+                data['DynamicToolbar.js'] = null;
+                data['ls.json'] = null;
+                data['github-markdown.min.css'] = null;
+                // 保存数据
+                LazierDocs.updateCacheFiles(data);
+            }
+            // 统一的标题id生成
+            function customSlugify(s) {
+                // 一个简单的 slugify 函数，将标题文本转换为有效的 ID
+                return s.toLowerCase()
+                    .toLowerCase()
+                    .replace(/[^\w\u4e00-\u9fa5\s-]/g, '')  // 移除非字母、数字、下划线、空格、连字符和非中文字符
+                    .replace(/\s+/g, '-')   // 将空格转换为连字符
+                    .replace(/-+/g, '-')    // 合并多个连字符
+                    .replace(/^-+/, '')     // 移除开头的连字符
+                    .replace(/-+$/, '');    // 移除结尾的连字符
+            }
 
-                LazierDocs.parseMarkdown = function (mdText) {
-                    return window.markdownit({
-                        html: true,
-                        linkify: true,
-                        typographer: true
-                    }).use(window.markdownItAnchor, {
-                        level: [1, 2, 3, 4, 5, 6], // 为哪些级别的标题生成锚点 (h1-h6)
-                        permalinkClass: 'header-anchor', // 链接的 CSS 类名
-                        slugify: customSlugify
-                    }).use(window.markdownItTocDoneRight, {
-                        slugify: customSlugify, // 使用同一个id生成函数
-                        containerClass: 'table-of-contents',
-                        // placeholder: '[[toc]]' // 可选：如果你偏好其他占位符，可以在这里指定
-                    }).render(mdText);
-                };
+            LazierDocs.parseMarkdown = function (mdText) {
+                const tocTag = '[[toc]]';
+                // 强制生成目录
+                if (!mdText.includes(tocTag)) mdText = tocTag + '\n' + mdText;
+                return window.markdownit({
+                    html: true,
+                    linkify: true,
+                    typographer: true
+                }).use(window.markdownItAnchor, {
+                    level: [1, 2, 3, 4, 5, 6], // 为哪些级别的标题生成锚点 (h1-h6)
+                    permalinkClass: 'header-anchor', // 链接的 CSS 类名
+                    slugify: customSlugify
+                }).use(window.markdownItTocDoneRight, {
+                    slugify: customSlugify, // 使用同一个id生成函数
+                    containerClass: 'table-of-contents',
+                    // placeholder: '[[toc]]' // 可选：如果你偏好其他占位符，可以在这里指定
+                }).render(mdText);
+            };
 
-                // md 文件加载完成后进行操作
-                LazierDocs.hookLoadedMD = function () {
-                    let toolbarItems = [
-                        {
-                            html: '首页',
-                            action: () => window.location.href = '/docs/'
-                        },
-                        {
-                            html: 'Github主页',
-                            action: () => window.open('https://github.com/lazier334/res', '_blank')
-                        },
-                        {
-                            html: '清空缓存',
-                            action: clearCache
-                        },
-                        {
-                            html: '关于',
-                            action: () => alert('文档基于 LazierDocs 项目构建，项目地址 https://github.com/lazier334/lazierDocs')
-                        },
-                        {
-                            html: '<div id="otherMds"></div>',
-                            action: () => void 0
+            // md 文件加载完成后进行操作
+            LazierDocs.hookLoadedMD = function () {
+                let toolbarItems = [
+                    {
+                        html: '首页',
+                        action: () => window.location.href = '/docs/'
+                    },
+                    {
+                        html: 'Github主页',
+                        action: () => window.open('https://github.com/lazier334/res', '_blank')
+                    },
+                    {
+                        html: '清空缓存',
+                        action: clearCache
+                    },
+                    {
+                        html: '关于',
+                        action: () => alert('文档基于 LazierDocs 项目构建，项目地址 https://github.com/lazier334/lazierDocs')
+                    },
+                    {
+                        html: '<div id="otherMds"></div>',
+                        action: () => void 0
+                    }
+                ];
+                let toc = document.querySelector('nav.table-of-contents');
+                // 动态添加章节列表
+                toolbarItems.unshift({
+                    html: `<div><h3>目录</h3>${toc?.innerHTML || '--无目录--<br>在文档中使用 "[[toc]]" 符号可加载目录'}<div>`
+                });
+                toc?.remove?.();
+
+                // 创建右下角的工具栏
+                const toolbar = new DynamicToolbar({
+                    position: "bottom-right",
+                    buttonText: '菜单 ',
+                    items: toolbarItems
+                }, (id) => {
+                    // 处理css样式
+                    return `
+                        [data-toolbar-id="${id}"]>.toolbar-dropdown {
+                            /* 这里控制导航栏的背景
+                            background: rgba(255, 255, 255, .9); */
                         }
-                    ];
-                    let toc = document.querySelector('nav.table-of-contents');
-                    // 动态添加章节列表
-                    toolbarItems.unshift({
-                        html: `<div><h3>目录</h3>${toc?.innerHTML || '--无目录--<br>在文档中使用 "[[toc]]" 符号可加载目录'}<div>`
-                    });
-                    toc?.remove?.();
-
-                    // 创建右下角的工具栏
-                    const toolbar = new DynamicToolbar({
-                        position: "bottom-right",
-                        buttonText: '菜单 ',
-                        items: toolbarItems
-                    }, (id) => {
-                        // 处理css样式
-                        return `
-                        [data-toolbar-id="${id}"] .toolbar-dropdown {
+                        [data-toolbar-id="${id}"]>.dynamic-toolbar {
                             background: rgba(255, 255, 255, .5);
                         }
-                        [data-toolbar-id="${id}"] .dynamic-toolbar {
-                            background: rgba(255, 255, 255, .5);
+                        [data-toolbar-id="${id}"]>.toolbar-main-btn {
+                            background: rgba(74, 109, 224, .3);
                         }
-                        [data-toolbar-id="${id}"] .toolbar-main-btn {
-                            background: rgba(74, 109, 224, .5);
-                        }
-                        [data-toolbar-id="${id}"] .toolbar-main-btn:hover {
+                        [data-toolbar-id="${id}"]>.toolbar-main-btn:hover {
                             background: #3a5ecf;
                         }
                         `;
-                    });
+                });
 
-                    // 添加列表
-                    (() => {
-                        let html = '';
-                        fetch('ls.json').then(res => res.json()).then(json => {
-                            // 把 json 转成书籍列表md语言，再使用md组件渲染
-                            const scanfJson = (d, num, path) => {
-                                const re = [];
-                                const blankString = new Array(num * 4).fill(' ').join('');
-                                for (const k in d) {
-                                    const v = d[k];
-                                    const li = `${blankString}* [${k}](${path + k})`;
-                                    if (typeof v == 'object' && v != null) {
-                                        re.push(li + '\n' + scanfJson(v, num + 1, path + k + '/'))
-                                    } else {
-                                        re.push(li)
-                                    }
+                // 添加列表
+                (() => {
+                    let html = '';
+                    fetch('ls.json').then(res => res.json()).then(json => {
+                        // 把 json 转成书籍列表md语言，再使用md组件渲染
+                        const scanfJson = (d, num, path) => {
+                            const re = [];
+                            const blankString = new Array(num * 4).fill(' ').join('');
+                            for (const k in d) {
+                                const v = d[k];
+                                const li = `${blankString}* [${k}](${path + k})`;
+                                if (typeof v == 'object' && v != null) {
+                                    re.push(li + '\n' + scanfJson(v, num + 1, path + k + '/'))
+                                } else {
+                                    re.push(li)
                                 }
-                                return re.join('\n');
-                            };
-                            let md = scanfJson(json, 0, LazierDocs.basePath || '') || '';
-                            html = `<div><h3>书籍列表</h3>${LazierDocs.parseMarkdown(md)}</div>`;
-                        }).catch(err => {
-                            html = `加载书籍列表失败: ${err.message}`;
-                        }).finally(r => {
-                            let otherMds = toolbar.toolbar.querySelector('#otherMds');
-                            if (otherMds) {
-                                otherMds.innerHTML = html;
                             }
-                        })
-                    })();
-                }
-            })()
+                            return re.join('\n');
+                        };
+                        let md = scanfJson(json, 0, LazierDocs.basePath || '') || '';
+                        html = `<div><h3>书籍列表</h3>${LazierDocs.parseMarkdown(md)}</div>`;
+                    }).catch(err => {
+                        html = `加载书籍列表失败: ${err.message}`;
+                    }).finally(r => {
+                        let otherMds = toolbar.toolbar.querySelector('#otherMds');
+                        if (otherMds) {
+                            otherMds.innerHTML = html;
+                        }
+                    })
+                })();
+            }
+        })()
     </script>
     <h1>我的应用</h1>
     <button onclick="clearCache()">清理缓存</button>

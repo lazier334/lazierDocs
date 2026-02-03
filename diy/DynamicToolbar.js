@@ -89,15 +89,59 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
-        /* 响应式设计 */
+
         @media (max-width: 768px) {
             .dynamic-toolbar {
-                transform: scale(0.9);
+                transform: scale(1);
             }
-                
+
+            .toolbar-main-btn {
+                min-height: 44px;
+                padding: 12px 16px;
+                font-size: 16px;
+            }
+
             .toolbar-dropdown {
-                max-width: 80vw; /* 在移动设备上使用更大的最大宽度 */
+                max-width: 80vw;
+                width: max-content;
+                min-width: 200px;
+                max-height: 50vh;
+                white-space: normal;
+                overflow-y: auto;
+            }
+
+            .toolbar-item {
+                min-height: 44px;
+                padding: 12px 16px;
+                font-size: 16px;
+                line-height: 1.4;
+                white-space: normal;
+                word-wrap: break-word;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .toolbar-dropdown {
+                max-width: 95vw;
+                min-width: 180px;
+            }
+
+            .dynamic-toolbar {
+                transform: scale(0.95);
+            }
+        }
+
+        /* 安全区域适配（针对有刘海或圆弧屏幕的设备） */
+        @supports (padding: max(0px)) {
+
+            .position-bottom-left,
+            .position-bottom-right {
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+            }
+
+            .position-top-left,
+            .position-top-right {
+                padding-top: env(safe-area-inset-top, 0px);
             }
         }
     `;
@@ -231,6 +275,17 @@
             this.dropdown.style.bottom = '';
             this.dropdown.style.left = '';
             this.dropdown.style.right = '';
+
+            // 移动端特定适配（不改变基本布局逻辑）
+            if (viewportWidth <= 480) {
+                // 确保下拉菜单不会超出视口右侧
+                const dropdownRect = this.dropdown.getBoundingClientRect();
+                const maxAllowedWidth = viewportWidth - 20; // 留出边距
+
+                if (dropdownRect.width > maxAllowedWidth) {
+                    this.dropdown.style.maxWidth = maxAllowedWidth + 'px';
+                }
+            }
 
             if (this.options.position.includes('bottom')) {
                 // 如果工具栏在底部，下拉菜单向上展开
